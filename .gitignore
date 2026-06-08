@@ -1,0 +1,27 @@
+# Python
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/.pytest_cache/
+backend/.coverage
+backend/htmlcov/
+backend/*.egg-info/
+
+# Secrets & credentials
+backend/.env
+backend/credentials.json
+backend/token.json
+*.db
+
+# Node
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# Agent skills (has its own git repo)
+agent-skills/
+
+# Misc
+.DS_Store
+Thumbs.db
