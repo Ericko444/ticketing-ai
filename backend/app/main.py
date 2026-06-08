@@ -7,8 +7,24 @@ from app.config import settings
 from app.db.session import create_tables
 
 
-async def _noop_handler(email_data: dict) -> None:
-    pass
+async def _run_graph(email_data: dict) -> None:
+    from app.agent.graph import get_graph
+    from app.agent.state import AgentState
+    graph = get_graph()
+    state: AgentState = {
+        "email_id": email_data["email_id"],
+        "subject": email_data["subject"],
+        "body": email_data["body"],
+        "sender": email_data["sender"],
+        "ticket_id": email_data["ticket_id"],
+        "assigned_team": "",
+        "routing_confidence": 0.0,
+        "evaluator_verdict": "",
+        "supervisor_action": "",
+        "final_team": "",
+    }
+    config = {"configurable": {"thread_id": email_data["ticket_id"]}}
+    await asyncio.get_event_loop().run_in_executor(None, graph.invoke, state, config)
 
 
 @asynccontextmanager
@@ -17,7 +33,7 @@ async def lifespan(app: FastAPI):
     from app.gmail.client import GmailClient
     from app.gmail.poller import start_poller
     gmail = GmailClient()
-    poller_task = asyncio.create_task(start_poller(gmail, _noop_handler))
+    poller_task = asyncio.create_task(start_poller(gmail, _run_graph))
     yield
     poller_task.cancel()
     try:
