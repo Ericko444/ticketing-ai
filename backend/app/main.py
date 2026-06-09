@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.db.session import create_tables
 from app.notifications.sse import broadcaster
-from app.routers import supervisor
+from app.routers import stream, supervisor, tickets
 
 
 async def _run_graph(email_data: dict) -> None:
@@ -56,7 +56,9 @@ app.add_middleware(
 )
 
 
+app.include_router(tickets.router)
 app.include_router(supervisor.router)
+app.include_router(stream.router)
 
 
 @app.get("/health")
