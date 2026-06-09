@@ -70,7 +70,8 @@ def test_high_confidence_routes_directly(in_memory_db):
     with patch("app.agent.nodes._llm", mock_llm), \
          patch("app.agent.graph.SessionLocal", in_memory_db), \
          patch("app.agent.graph.send_team_notification"), \
-         patch("app.agent.graph.send_supervisor_alert"):
+         patch("app.agent.graph.send_supervisor_alert"), \
+         patch("app.agent.graph.broadcaster"):
 
         graph = build_graph(checkpointer=MemorySaver())
         result = graph.invoke(_base_input(ticket_id), config)
@@ -177,7 +178,8 @@ def test_supervisor_resume_approved(in_memory_db):
 
     with patch("app.agent.graph.SessionLocal", in_memory_db), \
          patch("app.agent.graph.send_supervisor_alert"), \
-         patch("app.agent.graph.send_team_notification"):
+         patch("app.agent.graph.send_team_notification"), \
+         patch("app.agent.graph.broadcaster"):
         result = graph.invoke(
             Command(resume={"action": "approved", "team": "Support"}),
             config,
@@ -219,7 +221,8 @@ def test_supervisor_resume_overridden(in_memory_db):
 
     with patch("app.agent.graph.SessionLocal", in_memory_db), \
          patch("app.agent.graph.send_supervisor_alert"), \
-         patch("app.agent.graph.send_team_notification"):
+         patch("app.agent.graph.send_team_notification"), \
+         patch("app.agent.graph.broadcaster"):
         result = graph.invoke(
             Command(resume={"action": "overridden", "team": "HR"}),
             config,

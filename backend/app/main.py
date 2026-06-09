@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.db.session import create_tables
+from app.notifications.sse import broadcaster
 from app.routers import supervisor
 
 
@@ -31,6 +32,7 @@ async def _run_graph(email_data: dict) -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_tables()
+    broadcaster.set_loop(asyncio.get_running_loop())
     from app.gmail.client import GmailClient
     from app.gmail.poller import start_poller
     gmail = GmailClient()

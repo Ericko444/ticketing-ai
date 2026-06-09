@@ -11,6 +11,7 @@ from app.config import settings
 from app.db.models import Ticket
 from app.db.session import SessionLocal
 from app.notifications.email import send_supervisor_alert, send_team_notification
+from app.notifications.sse import broadcaster
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +74,21 @@ def _send_notifications_node(state: AgentState) -> AgentState:
             db.commit()
             members = settings.members_for_team(final_team)
             send_team_notification(ticket, members)
+            broadcaster.broadcast({
+                "type": "ticket_routed",
+                "ticket": {
+                    "id": ticket.id,
+                    "subject": ticket.subject,
+                    "sender": ticket.sender,
+                    "assigned_team": ticket.assigned_team,
+                    "final_team": ticket.final_team,
+                    "routing_confidence": ticket.routing_confidence,
+                    "evaluator_verdict": ticket.evaluator_verdict,
+                    "supervisor_action": ticket.supervisor_action,
+                    "status": ticket.status,
+                    "created_at": ticket.created_at.isoformat() if ticket.created_at else None,
+                },
+            })
     finally:
         db.close()
 
