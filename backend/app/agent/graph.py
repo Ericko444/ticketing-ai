@@ -10,6 +10,7 @@ from app.agent.state import AgentState
 from app.config import settings
 from app.db.models import Ticket
 from app.db.session import SessionLocal
+from app.notifications.email import send_supervisor_alert, send_team_notification
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,7 @@ def _notify_supervisor_node(state: AgentState) -> AgentState:
             ticket.routing_confidence = state["routing_confidence"]
             ticket.evaluator_verdict = state["evaluator_verdict"]
             db.commit()
+            send_supervisor_alert(ticket, settings.supervisor_email)
     finally:
         db.close()
 
@@ -69,6 +71,8 @@ def _send_notifications_node(state: AgentState) -> AgentState:
             ticket.supervisor_action = state.get("supervisor_action", "")
             ticket.status = "routed"
             db.commit()
+            members = settings.members_for_team(final_team)
+            send_team_notification(ticket, members)
     finally:
         db.close()
 

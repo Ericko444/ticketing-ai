@@ -69,12 +69,11 @@ def test_high_confidence_routes_directly(in_memory_db):
     config = {"configurable": {"thread_id": ticket_id}}
     with patch("app.agent.nodes._llm", mock_llm), \
          patch("app.agent.graph.SessionLocal", in_memory_db), \
-         patch("app.agent.nodes._llm", mock_llm):
+         patch("app.agent.graph.send_team_notification"), \
+         patch("app.agent.graph.send_supervisor_alert"):
 
         graph = build_graph(checkpointer=MemorySaver())
-
-        with patch("app.agent.graph.SessionLocal", in_memory_db):
-            result = graph.invoke(_base_input(ticket_id), config)
+        result = graph.invoke(_base_input(ticket_id), config)
 
     assert result["assigned_team"] == "IT"
     assert result["routing_confidence"] == 0.95
@@ -108,12 +107,43 @@ def test_low_confidence_triggers_supervisor_interrupt(in_memory_db):
     graph = build_graph(checkpointer=MemorySaver())
 
     with patch("app.agent.nodes._llm", mock_llm), \
-         patch("app.agent.graph.SessionLocal", in_memory_db):
+         patch("app.agent.graph.SessionLocal", in_memory_db), \
+         patch("app.agent.graph.send_supervisor_alert"):
         result = graph.invoke(_base_input(ticket_id), config)
 
     # Graph should be interrupted — result is the interrupt value, not final state
     assert result is not None
     # Check DB ticket is pending_supervisor
+    session = in_memory_db()
+    ticket = session.query(Ticket).filter_by(id=ticket_id).first()
+    assert ticket.status == "pending_supervisor"
+    session.close()
+
+
+def test_supervisor_interrupt_sends_alert(in_memory_db):
+    ticket_id = str(uuid.uuid4())
+    session = in_memory_db()
+    session.add(Ticket(
+        id=ticket_id, email_id="msg_002b", subject="Payroll question", body="help", sender="u@e.com"
+    ))
+    session.commit()
+    session.close()
+
+    mock_llm = _make_graph(
+        '{"team": "Support", "confidence": 0.40}',
+        '{"verdict": "uncertain"}',
+    )
+
+    config = {"configurable": {"thread_id": ticket_id}}
+    graph = build_graph(checkpointer=MemorySaver())
+
+    with patch("app.agent.nodes._llm", mock_llm), \
+         patch("app.agent.graph.SessionLocal", in_memory_db), \
+         patch("app.agent.graph.send_supervisor_alert") as mock_alert:
+        graph.invoke(_base_input(ticket_id), config)
+
+    mock_alert.assert_called_once()
+    # Verify the ticket was persisted as pending before the alert was sent
     session = in_memory_db()
     ticket = session.query(Ticket).filter_by(id=ticket_id).first()
     assert ticket.status == "pending_supervisor"
@@ -141,11 +171,13 @@ def test_supervisor_resume_approved(in_memory_db):
     graph = build_graph(checkpointer=checkpointer)
 
     with patch("app.agent.nodes._llm", mock_llm), \
-         patch("app.agent.graph.SessionLocal", in_memory_db):
+         patch("app.agent.graph.SessionLocal", in_memory_db), \
+         patch("app.agent.graph.send_supervisor_alert"):
         graph.invoke(_base_input(ticket_id), config)
 
-    # Resume with supervisor approval
-    with patch("app.agent.graph.SessionLocal", in_memory_db):
+    with patch("app.agent.graph.SessionLocal", in_memory_db), \
+         patch("app.agent.graph.send_supervisor_alert"), \
+         patch("app.agent.graph.send_team_notification"):
         result = graph.invoke(
             Command(resume={"action": "approved", "team": "Support"}),
             config,
@@ -181,10 +213,13 @@ def test_supervisor_resume_overridden(in_memory_db):
     graph = build_graph(checkpointer=checkpointer)
 
     with patch("app.agent.nodes._llm", mock_llm), \
-         patch("app.agent.graph.SessionLocal", in_memory_db):
+         patch("app.agent.graph.SessionLocal", in_memory_db), \
+         patch("app.agent.graph.send_supervisor_alert"):
         graph.invoke(_base_input(ticket_id), config)
 
-    with patch("app.agent.graph.SessionLocal", in_memory_db):
+    with patch("app.agent.graph.SessionLocal", in_memory_db), \
+         patch("app.agent.graph.send_supervisor_alert"), \
+         patch("app.agent.graph.send_team_notification"):
         result = graph.invoke(
             Command(resume={"action": "overridden", "team": "HR"}),
             config,
