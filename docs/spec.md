@@ -23,14 +23,115 @@ Build a LangGraph-based system that ingests incoming support emails via Gmail AP
 | Layer | Technology |
 |---|---|
 | Agent orchestration | LangGraph (Python) |
-| LLM | Claude claude-sonnet-4-6 (Anthropic) |
-| Email ingestion | Gmail API (OAuth2) |
-| Email notifications | Gmail SMTP (smtplib) |
+| LLM | Claude claude-sonnet-4-6 (Anthropic) or GPT-4o-mini (OpenAI fallback) |
+| Email ingestion | Gmail API (OAuth2) — optional, guarded by `GMAIL_ENABLED` |
+| Email notifications | Pluggable SMTP: `log` (default) / Mailtrap / Gmail |
 | Backend API | FastAPI |
 | Real-time push | Server-Sent Events (SSE) |
 | Frontend | Next.js (App Router) |
 | Persistence | SQLite + LangGraph SqliteSaver checkpointer |
 | Environment | Python 3.11+, Node.js 18+ |
+
+---
+
+## Configuration
+
+### LLM Provider
+
+Set one key in `backend/.env`. Anthropic takes priority if both are present.
+
+```env
+ANTHROPIC_API_KEY=sk-ant-...   # Uses claude-sonnet-4-6
+OPENAI_API_KEY=sk-...          # Uses gpt-4o-mini (fallback)
+```
+
+At least one key is required; the app raises `ValueError` on startup if both are absent.
+
+---
+
+### Email Notification Backends
+
+Controlled by `EMAIL_BACKEND` in `backend/.env`. Defaults to `log` — no credentials needed.
+
+#### `log` — zero setup (default)
+
+Emails are written to the server log. Nothing is sent. Suitable for local development.
+
+```env
+EMAIL_BACKEND=log
+EMAIL_NOTIFICATIONS=true
+```
+
+#### `mailtrap` — free sandbox (recommended for testing)
+
+Catches all outbound emails in a web inbox at [mailtrap.io](https://mailtrap.io). Nothing reaches real recipients.
+
+1. Sign up free at mailtrap.io → **Email Testing → My Inbox → SMTP Settings**
+2. Copy the SMTP username and password
+
+```env
+EMAIL_BACKEND=mailtrap
+MAILTRAP_USER=<smtp-username-from-mailtrap>
+MAILTRAP_PASSWORD=<smtp-password-from-mailtrap>
+```
+
+#### `gmail` — real delivery
+
+Requires a Google account with 2FA enabled and an App Password (not your account password).
+
+1. Enable 2-Step Verification on your Google account
+2. Go to **Google Account → Security → App Passwords** and generate one for "Mail"
+3. Set in `.env`:
+
+```env
+EMAIL_BACKEND=gmail
+GMAIL_USER=your_address@gmail.com
+GMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx   # 16-char app password
+```
+
+---
+
+### Gmail Inbox Polling (optional)
+
+The Gmail poller ingests incoming support emails via OAuth2. It is **disabled by default** — the app starts cleanly without `credentials.json`.
+
+```env
+GMAIL_ENABLED=false            # Set true only when credentials.json is present
+GMAIL_CREDENTIALS_PATH=credentials.json
+GMAIL_TOKEN_PATH=token.json
+```
+
+To set up OAuth credentials: Google Cloud Console → Create project → Enable Gmail API → Download `credentials.json` → place it in `backend/`.
+
+---
+
+### Full `.env` reference
+
+```env
+# LLM — at least one required
+ANTHROPIC_API_KEY=
+OPENAI_API_KEY=
+
+# Email backend: log | mailtrap | gmail
+EMAIL_BACKEND=log
+EMAIL_NOTIFICATIONS=true
+
+# Mailtrap (EMAIL_BACKEND=mailtrap)
+MAILTRAP_USER=
+MAILTRAP_PASSWORD=
+
+# Gmail SMTP (EMAIL_BACKEND=gmail)
+GMAIL_USER=
+GMAIL_APP_PASSWORD=
+
+# Gmail OAuth2 inbox polling
+GMAIL_ENABLED=false
+GMAIL_CREDENTIALS_PATH=credentials.json
+GMAIL_TOKEN_PATH=token.json
+
+# App
+FRONTEND_URL=http://localhost:3000
+```
 
 ---
 
