@@ -12,7 +12,16 @@ backend/*.egg-info/
 backend/.env
 backend/credentials.json
 backend/token.json
+
+# SQLite runtime files
 *.db
+*.db-shm
+*.db-wal
+
+# Logs
+backend/uvicorn.log
+backend/uvicorn-err.log
+frontend/nextjs.log
 
 # Node
 frontend/node_modules/
