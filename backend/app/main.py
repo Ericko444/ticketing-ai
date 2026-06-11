@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.db.session import create_tables
 from app.notifications.sse import broadcaster
-from app.routers import stream, supervisor, tickets
+from app.routers import debug, stream, supervisor, tickets
 
 
 async def _run_graph(email_data: dict) -> None:
@@ -33,16 +33,19 @@ async def _run_graph(email_data: dict) -> None:
 async def lifespan(app: FastAPI):
     create_tables()
     broadcaster.set_loop(asyncio.get_running_loop())
-    from app.gmail.client import GmailClient
-    from app.gmail.poller import start_poller
-    gmail = GmailClient()
-    poller_task = asyncio.create_task(start_poller(gmail, _run_graph))
+    poller_task = None
+    if settings.gmail_enabled:
+        from app.gmail.client import GmailClient
+        from app.gmail.poller import start_poller
+        gmail = GmailClient()
+        poller_task = asyncio.create_task(start_poller(gmail, _run_graph))
     yield
-    poller_task.cancel()
-    try:
-        await poller_task
-    except asyncio.CancelledError:
-        pass
+    if poller_task:
+        poller_task.cancel()
+        try:
+            await poller_task
+        except asyncio.CancelledError:
+            pass
 
 
 app = FastAPI(title="Ticketing AI", lifespan=lifespan)
@@ -59,6 +62,7 @@ app.add_middleware(
 app.include_router(tickets.router)
 app.include_router(supervisor.router)
 app.include_router(stream.router)
+app.include_router(debug.router)
 
 
 @app.get("/health")

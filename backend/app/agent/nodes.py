@@ -2,8 +2,6 @@ import json
 import logging
 import re
 
-from langchain_anthropic import ChatAnthropic
-
 from app.agent.prompts import CLASSIFY_PROMPT, EVALUATE_PROMPT
 from app.agent.state import AgentState
 from app.config import settings
@@ -12,11 +10,26 @@ logger = logging.getLogger(__name__)
 
 VALID_TEAMS = {"IT", "Support", "Helpdesk", "HR"}
 
-_llm = ChatAnthropic(
-    model="claude-sonnet-4-6",
-    api_key=settings.anthropic_api_key,
-    max_tokens=256,
-)
+
+def _build_llm():
+    if settings.anthropic_api_key:
+        from langchain_anthropic import ChatAnthropic
+        logger.info("LLM provider: Anthropic (claude-sonnet-4-6)")
+        return ChatAnthropic(
+            model="claude-sonnet-4-6",
+            api_key=settings.anthropic_api_key,
+            max_tokens=256,
+        )
+    from langchain_openai import ChatOpenAI
+    logger.info("LLM provider: OpenAI (gpt-4o-mini)")
+    return ChatOpenAI(
+        model="gpt-4o-mini",
+        api_key=settings.openai_api_key,
+        max_tokens=256,
+    )
+
+
+_llm = _build_llm()
 
 
 def _parse_json(text: str) -> dict:

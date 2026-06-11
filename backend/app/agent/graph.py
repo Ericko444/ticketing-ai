@@ -1,4 +1,5 @@
 import logging
+import sqlite3
 from pathlib import Path
 from typing import Literal
 
@@ -110,7 +111,8 @@ def build_graph(checkpointer=None):
     graph.add_edge("send_notifications", END)
 
     if checkpointer is None:
-        checkpointer = SqliteSaver.from_conn_string(_DB_PATH)
+        conn = sqlite3.connect(_DB_PATH, check_same_thread=False)
+        checkpointer = SqliteSaver(conn)
 
     return graph.compile(checkpointer=checkpointer)
 
