@@ -45,63 +45,108 @@ export default function SupervisorPage() {
   }
 
   return (
-    <main className="max-w-4xl mx-auto p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Supervisor Queue</h1>
-        <Link href="/" className="text-sm text-blue-600 hover:underline">
-          ← Dashboard
-        </Link>
+    <main className="max-w-5xl mx-auto px-6 py-8">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-slate-900">Supervisor Queue</h1>
+        <p className="text-sm text-slate-500 mt-0.5">
+          Tickets flagged for low-confidence routing
+        </p>
       </div>
 
       {loading ? (
-        <p className="text-gray-500">Loading…</p>
+        <div className="space-y-4">
+          {[1, 2].map((i) => (
+            <div
+              key={i}
+              className="bg-white rounded-lg border border-slate-200 p-5 h-32 animate-pulse"
+            />
+          ))}
+        </div>
       ) : tickets.length === 0 ? (
-        <p className="text-gray-500">No tickets pending review.</p>
+        <div className="text-center py-24">
+          <p className="text-4xl mb-3">✓</p>
+          <p className="font-medium text-slate-700">All clear</p>
+          <p className="text-sm text-slate-400 mt-1">No tickets pending review</p>
+        </div>
       ) : (
-        <table className="w-full text-sm border-collapse">
-          <thead>
-            <tr className="border-b text-left text-gray-500">
-              <th className="pb-2 font-medium">Subject</th>
-              <th className="pb-2 font-medium">Proposed team</th>
-              <th className="pb-2 font-medium">Confidence</th>
-              <th className="pb-2 font-medium">Verdict</th>
-              <th className="pb-2 font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {tickets.map((ticket) => (
-              <tr key={ticket.id} className="border-b">
-                <td className="py-3 pr-4 max-w-xs truncate">{ticket.subject}</td>
-                <td className="py-3 pr-4">
-                  <TeamBadge team={ticket.assigned_team} />
-                </td>
-                <td className="py-3 pr-4">
-                  {(ticket.routing_confidence * 100).toFixed(0)}%
-                </td>
-                <td className="py-3 pr-4 capitalize">{ticket.evaluator_verdict}</td>
-                <td className="py-3">
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleApprove(ticket.id)}
-                      className="px-3 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700"
-                    >
-                      Approve
-                    </button>
-                    <button
-                      onClick={() => setOverrideTarget(ticket.id)}
-                      className="px-3 py-1 text-xs rounded border hover:bg-gray-50"
-                    >
-                      Override
-                    </button>
+        <div className="space-y-4">
+          {tickets.map((ticket) => {
+            const confidence = Math.round(ticket.routing_confidence * 100);
+            const barColor =
+              confidence >= 80
+                ? "bg-emerald-400"
+                : confidence >= 60
+                ? "bg-amber-400"
+                : "bg-red-400";
+
+            return (
+              <div
+                key={ticket.id}
+                className="bg-white border border-amber-200 rounded-xl p-5 shadow-sm"
+              >
+                <div className="flex items-start justify-between gap-4 mb-3">
+                  <div>
+                    <p className="font-semibold text-slate-900">{ticket.subject}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{ticket.sender}</p>
                   </div>
-                  {errors[ticket.id] && (
-                    <p className="text-xs text-red-500 mt-1">{errors[ticket.id]}</p>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  <span className="shrink-0 text-xs font-medium px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 ring-1 ring-amber-200">
+                    Needs review
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-4 text-sm mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400">Proposed</span>
+                    <TeamBadge team={ticket.assigned_team} />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400">Verdict</span>
+                    <span className="text-xs font-medium text-slate-600 capitalize">
+                      {ticket.evaluator_verdict}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 ml-auto">
+                    <span className="text-xs text-slate-400">Confidence</span>
+                    <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${barColor}`}
+                        style={{ width: `${confidence}%` }}
+                      />
+                    </div>
+                    <span className="text-xs font-semibold text-slate-600 tabular-nums">
+                      {confidence}%
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
+                  <button
+                    onClick={() => handleApprove(ticket.id)}
+                    className="px-4 py-1.5 text-sm rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 font-medium transition-colors"
+                  >
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => setOverrideTarget(ticket.id)}
+                    className="px-4 py-1.5 text-sm rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 font-medium transition-colors"
+                  >
+                    Override team
+                  </button>
+                  <Link
+                    href={`/tickets/${ticket.id}`}
+                    className="ml-auto text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    View details →
+                  </Link>
+                </div>
+
+                {errors[ticket.id] && (
+                  <p className="text-xs text-red-500 mt-2">{errors[ticket.id]}</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
       )}
 
       {overrideTarget && (
