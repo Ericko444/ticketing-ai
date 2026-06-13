@@ -1,5 +1,6 @@
 import asyncio
 import uuid
+from typing import Optional
 
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -14,6 +15,10 @@ class InjectRequest(BaseModel):
     subject: str = "Test: printer not working"
     body: str = "The office printer on the 3rd floor stopped responding after the Windows update."
     sender: str = "tester@example.com"
+    # Optional overrides — when set, the LLM nodes are skipped (used by e2e tests)
+    assigned_team: Optional[str] = None
+    routing_confidence: Optional[float] = None
+    evaluator_verdict: Optional[str] = None
 
 
 @router.post("/inject")
@@ -45,9 +50,9 @@ async def inject_email(req: InjectRequest):
         "body": req.body,
         "sender": req.sender,
         "ticket_id": ticket_id,
-        "assigned_team": "",
-        "routing_confidence": 0.0,
-        "evaluator_verdict": "",
+        "assigned_team": req.assigned_team or "",
+        "routing_confidence": req.routing_confidence if req.routing_confidence is not None else 0.0,
+        "evaluator_verdict": req.evaluator_verdict or "",
         "supervisor_action": "",
         "final_team": "",
     }

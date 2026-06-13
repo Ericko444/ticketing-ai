@@ -40,6 +40,10 @@ def _parse_json(text: str) -> dict:
 
 
 def classify_ticket(state: AgentState) -> AgentState:
+    # Short-circuit when classification is pre-seeded (e.g. debug/inject with overrides)
+    if state.get("assigned_team") and state.get("routing_confidence", 0.0) > 0:
+        return state
+
     prompt = CLASSIFY_PROMPT.format(subject=state["subject"], body=state["body"])
     try:
         response = _llm.invoke(prompt)
@@ -58,6 +62,10 @@ def classify_ticket(state: AgentState) -> AgentState:
 
 
 def evaluate_routing(state: AgentState) -> AgentState:
+    # Short-circuit when verdict is pre-seeded (e.g. debug/inject with overrides)
+    if state.get("evaluator_verdict"):
+        return state
+
     prompt = EVALUATE_PROMPT.format(
         subject=state["subject"],
         body=state["body"],

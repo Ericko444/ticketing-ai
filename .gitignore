@@ -34,3 +34,5 @@ agent-skills/
 # Misc
 .DS_Store
 Thumbs.db
+
+e2e/node_modules/
