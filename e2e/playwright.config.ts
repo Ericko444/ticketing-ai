@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
+  globalSetup: "./globalSetup.ts",
   testDir: "./tests",
   // Tests share backend state — run sequentially to avoid collisions
   fullyParallel: false,

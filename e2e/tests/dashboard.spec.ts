@@ -13,16 +13,16 @@ test.describe("Dashboard", () => {
   });
 
   test("shows empty state when no tickets exist", async ({ page }) => {
-    // Navigate directly — if there happen to be tickets this test is informational only
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
 
-    const list = page.locator("ul li");
-    const empty = page.getByText("No tickets yet");
-    // Either tickets exist (from previous runs) or the empty state is shown
-    const hasTickets = await list.count() > 0;
+    // Wait for the async fetch to settle — either tickets or empty state will appear
+    await expect(
+      page.locator("ul li").first().or(page.getByText("No tickets yet"))
+    ).toBeVisible({ timeout: 10_000 });
+
+    const hasTickets = (await page.locator("ul li").count()) > 0;
     if (!hasTickets) {
-      await expect(empty).toBeVisible();
+      await expect(page.getByText("No tickets yet")).toBeVisible();
     }
   });
 
@@ -34,57 +34,38 @@ test.describe("Dashboard", () => {
     });
 
     await page.goto("/");
-    await expect(
-      page.locator("li").filter({ hasText: fixture.subject })
-    ).toBeVisible();
+    const card = page.locator(`[data-testid="${ticket_id}"]`);
 
-    // IT badge with blue dot should be present
-    await expect(
-      page.locator("li").filter({ hasText: fixture.subject }).getByText("IT")
-    ).toBeVisible();
+    await expect(card).toBeVisible();
+    await expect(card.getByText("IT")).toBeVisible();
+    await expect(card.getByText("Routed")).toBeVisible();
+    await expect(card.getByText(/confidence/i)).toBeVisible();
 
-    // "Routed" status pill
-    await expect(
-      page.locator("li").filter({ hasText: fixture.subject }).getByText("Routed")
-    ).toBeVisible();
-
-    // Confidence bar should exist (confidence was 0.97 → "97% confidence")
-    await expect(
-      page.locator("li").filter({ hasText: fixture.subject }).getByText(/confidence/i)
-    ).toBeVisible();
-
-    // Cleanup hint for logs
     console.log(`IT ticket ${ticket_id}: ${fixture.subject}`);
   });
 
   test("Support ticket appears with correct badge", async ({ page }) => {
     const fixture = fixtures.support();
-    await injectRoutedTicket({ ...fixture, assigned_team: fixture.team });
+    const { ticket_id } = await injectRoutedTicket({ ...fixture, assigned_team: fixture.team });
 
     await page.goto("/");
-    await expect(
-      page.locator("li").filter({ hasText: fixture.subject }).getByText("Support")
-    ).toBeVisible();
+    await expect(page.locator(`[data-testid="${ticket_id}"]`).getByText("Support")).toBeVisible();
   });
 
   test("HR ticket appears with correct badge", async ({ page }) => {
     const fixture = fixtures.hr();
-    await injectRoutedTicket({ ...fixture, assigned_team: fixture.team });
+    const { ticket_id } = await injectRoutedTicket({ ...fixture, assigned_team: fixture.team });
 
     await page.goto("/");
-    await expect(
-      page.locator("li").filter({ hasText: fixture.subject }).getByText("HR")
-    ).toBeVisible();
+    await expect(page.locator(`[data-testid="${ticket_id}"]`).getByText("HR")).toBeVisible();
   });
 
   test("Helpdesk ticket appears with correct badge", async ({ page }) => {
     const fixture = fixtures.helpdesk();
-    await injectRoutedTicket({ ...fixture, assigned_team: fixture.team });
+    const { ticket_id } = await injectRoutedTicket({ ...fixture, assigned_team: fixture.team });
 
     await page.goto("/");
-    await expect(
-      page.locator("li").filter({ hasText: fixture.subject }).getByText("Helpdesk")
-    ).toBeVisible();
+    await expect(page.locator(`[data-testid="${ticket_id}"]`).getByText("Helpdesk")).toBeVisible();
   });
 
   test("pending supervisor ticket shows amber warning banner", async ({ page }) => {
@@ -109,7 +90,7 @@ test.describe("Dashboard", () => {
     });
 
     await page.goto("/");
-    await page.locator("li").filter({ hasText: fixture.subject }).click();
+    await page.locator(`[data-testid="${ticket_id}"]`).click();
     await expect(page).toHaveURL(`/tickets/${ticket_id}`);
     await expect(page.getByRole("heading", { name: fixture.subject })).toBeVisible();
   });

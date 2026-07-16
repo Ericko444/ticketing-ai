@@ -5,11 +5,14 @@ import { fixtures } from "../helpers/fixtures";
 test.describe("Supervisor queue", () => {
   test("shows empty state when no tickets are pending", async ({ page }) => {
     await page.goto("/supervisor");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
-    const cards = page.locator('[class*="amber"]').filter({ hasText: "Needs review" });
-    const isEmpty = await cards.count() === 0;
+    // Wait for the async fetch to settle — either cards or empty state will appear
+    await expect(
+      page.locator('[data-testid="supervisor-card"]').first().or(page.getByText(/all clear/i))
+    ).toBeVisible({ timeout: 10_000 });
 
+    const isEmpty = (await page.locator('[data-testid="supervisor-card"]').count()) === 0;
     if (isEmpty) {
       await expect(page.getByText(/all clear/i)).toBeVisible();
       await expect(page.getByText(/no tickets pending review/i)).toBeVisible();
@@ -25,7 +28,7 @@ test.describe("Supervisor queue", () => {
 
     await page.goto("/supervisor");
 
-    const card = page.locator("div").filter({ hasText: fixture.subject }).first();
+    const card = page.locator(`[data-ticket-id="${ticket_id}"]`);
     await expect(card).toBeVisible();
 
     // "Needs review" badge
@@ -58,20 +61,18 @@ test.describe("Supervisor queue", () => {
 
     await page.goto("/supervisor");
 
-    const card = page.locator("div").filter({ hasText: fixture.subject }).first();
+    const card = page.locator(`[data-ticket-id="${ticket_id}"]`);
     await expect(card).toBeVisible();
 
     await card.getByRole("button", { name: "Approve" }).click();
 
-    // Optimistic UI — card should disappear immediately
+    // Optimistic UI — this specific card should disappear immediately
     await expect(card).not.toBeVisible({ timeout: 5_000 });
 
-    // Allow graph to finish processing
-    await page.waitForTimeout(2_000);
+    // Poll until the graph finishes updating the DB
+    await expect.poll(() => getTicket(ticket_id).then((t) => t.status), { timeout: 15_000 }).toBe("routed");
 
-    // Backend should have updated the ticket to "routed"
     const updated = await getTicket(ticket_id);
-    expect(updated.status).toBe("routed");
     expect(updated.supervisor_action).toBe("approved");
     expect(updated.final_team).toBe(fixture.team);
 
@@ -90,7 +91,7 @@ test.describe("Supervisor queue", () => {
 
     await page.goto("/supervisor");
 
-    const card = page.locator("div").filter({ hasText: fixture.subject }).first();
+    const card = page.locator(`[data-ticket-id="${ticket_id}"]`);
     await expect(card).toBeVisible();
 
     await card.getByRole("button", { name: "Override team" }).click();
@@ -105,15 +106,14 @@ test.describe("Supervisor queue", () => {
     // Confirm
     await page.getByRole("button", { name: "Confirm override" }).click();
 
-    // Modal should close and card should disappear
+    // Modal should close and this specific card should disappear
     await expect(modal).not.toBeVisible({ timeout: 5_000 });
     await expect(card).not.toBeVisible({ timeout: 5_000 });
 
-    // Allow graph to resume
-    await page.waitForTimeout(2_000);
+    // Poll until the graph finishes updating the DB
+    await expect.poll(() => getTicket(ticket_id).then((t) => t.status), { timeout: 15_000 }).toBe("routed");
 
     const updated = await getTicket(ticket_id);
-    expect(updated.status).toBe("routed");
     expect(updated.supervisor_action).toBe("overridden");
     expect(updated.final_team).toBe("HR");
 
@@ -122,21 +122,20 @@ test.describe("Supervisor queue", () => {
 
   test("override modal — all four team buttons are selectable", async ({ page }) => {
     const fixture = fixtures.ambiguous();
-    await injectSupervisorTicket({ ...fixture, assigned_team: "IT" });
+    const { ticket_id } = await injectSupervisorTicket({ ...fixture, assigned_team: "IT" });
 
     await page.goto("/supervisor");
 
-    const card = page.locator("div").filter({ hasText: fixture.subject }).first();
+    const card = page.locator(`[data-ticket-id="${ticket_id}"]`);
     await card.getByRole("button", { name: "Override team" }).click();
 
-    const modal = page.locator('[role="heading"]').filter({ hasText: "Override Team Assignment" });
+    const modal = page.getByRole("heading", { name: "Override Team Assignment" });
     await expect(modal).toBeVisible();
 
     for (const team of ["IT", "Support", "Helpdesk", "HR"]) {
       const btn = page.getByRole("button", { name: team });
       await expect(btn).toBeVisible();
       await btn.click();
-      // The selected button should have a different style (border-2 selected)
       await expect(btn).toBeVisible();
     }
 
@@ -147,11 +146,11 @@ test.describe("Supervisor queue", () => {
 
   test("override modal closes on backdrop click", async ({ page }) => {
     const fixture = fixtures.ambiguous();
-    await injectSupervisorTicket({ ...fixture, assigned_team: "IT" });
+    const { ticket_id } = await injectSupervisorTicket({ ...fixture, assigned_team: "IT" });
 
     await page.goto("/supervisor");
 
-    const card = page.locator("div").filter({ hasText: fixture.subject }).first();
+    const card = page.locator(`[data-ticket-id="${ticket_id}"]`);
     await card.getByRole("button", { name: "Override team" }).click();
 
     await expect(
@@ -175,7 +174,7 @@ test.describe("Supervisor queue", () => {
 
     await page.goto("/supervisor");
 
-    const card = page.locator("div").filter({ hasText: fixture.subject }).first();
+    const card = page.locator(`[data-ticket-id="${ticket_id}"]`);
     await card.getByRole("link", { name: /view details/i }).click();
 
     await expect(page).toHaveURL(`/tickets/${ticket_id}`);
@@ -192,7 +191,7 @@ test.describe("Supervisor queue", () => {
     await page.goto("/supervisor");
 
     // At least the 3 we just injected should be present
-    const cards = page.locator("div").filter({ hasText: "Needs review" });
+    const cards = page.locator('[data-testid="supervisor-card"]');
     await expect(cards.first()).toBeVisible();
     expect(await cards.count()).toBeGreaterThanOrEqual(3);
   });

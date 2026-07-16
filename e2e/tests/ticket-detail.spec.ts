@@ -96,7 +96,7 @@ test.describe("Ticket detail page", () => {
 
       await page.goto(`/tickets/${ticket_id}`);
       await expect(page.getByRole("heading", { name: fixture.subject })).toBeVisible();
-      await expect(page.getByText(fixture.team)).toBeVisible();
+      await expect(page.getByText(fixture.team, { exact: true })).toBeVisible();
       console.log(`  ✓ ${fixture.team}: ${fixture.subject}`);
     }
   });

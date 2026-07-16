@@ -74,7 +74,7 @@ export default function DashboardPage() {
       ) : (
         <ul className="space-y-3">
           {tickets.map((ticket) => (
-            <li key={ticket.id}>
+            <li key={ticket.id} data-testid={ticket.id}>
               <Link href={`/tickets/${ticket.id}`}>
                 <TicketCard ticket={ticket} />
               </Link>
