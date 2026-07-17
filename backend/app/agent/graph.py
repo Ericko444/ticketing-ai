@@ -9,7 +9,7 @@ from langgraph.graph import END, StateGraph
 from app.agent.nodes import classify_ticket, evaluate_routing
 from app.agent.state import AgentState
 from app.config import settings
-from app.db.models import Ticket
+from app.db.models import Ticket, User
 from app.db.session import SessionLocal
 from app.notifications.email import send_supervisor_alert, send_team_notification
 from app.notifications.sse import broadcaster
@@ -73,7 +73,9 @@ def _send_notifications_node(state: AgentState) -> AgentState:
             ticket.supervisor_action = state.get("supervisor_action", "")
             ticket.status = "routed"
             db.commit()
-            members = settings.members_for_team(final_team)
+            members = [
+                u.email for u in db.query(User).filter_by(team=final_team, role="member").all()
+            ]
             send_team_notification(ticket, members)
             broadcaster.broadcast({
                 "type": "ticket_routed",

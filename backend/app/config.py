@@ -1,7 +1,7 @@
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List
+from typing import List
 
 import yaml
 from dotenv import load_dotenv
@@ -9,11 +9,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 VALID_TEAMS = {"IT", "Support", "Helpdesk", "HR"}
-
-
-@dataclass
-class TeamConfig:
-    members: List[str]
 
 
 @dataclass
@@ -33,10 +28,7 @@ class Settings:
     supervisor_email: str
     confidence_threshold: float
     polling_interval_seconds: int
-    teams: Dict[str, TeamConfig] = field(default_factory=dict)
-
-    def members_for_team(self, team: str) -> List[str]:
-        return self.teams.get(team, TeamConfig(members=[])).members
+    teams: List[str] = field(default_factory=list)
 
 
 def _load_settings() -> Settings:
@@ -47,18 +39,13 @@ def _load_settings() -> Settings:
     with open(config_path) as f:
         cfg = yaml.safe_load(f)
 
-    raw_teams = cfg.get("teams", {})
-    if not raw_teams:
+    teams = cfg.get("teams", [])
+    if not teams:
         raise ValueError("config.yaml must define at least one team")
 
-    for team_name in raw_teams:
+    for team_name in teams:
         if team_name not in VALID_TEAMS:
             raise ValueError(f"Unknown team '{team_name}' in config.yaml. Valid teams: {VALID_TEAMS}")
-
-    teams = {
-        name: TeamConfig(members=data.get("members", []))
-        for name, data in raw_teams.items()
-    }
 
     supervisor_email = cfg.get("supervisor", {}).get("email", "")
     if not supervisor_email:

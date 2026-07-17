@@ -6,18 +6,7 @@ routing:
   polling_interval_seconds: 30
 
 teams:
-  IT:
-    members:
-      - it.agent1@example.com
-      - it.agent2@example.com
-  Support:
-    members:
-      - support.agent1@example.com
-      - support.agent2@example.com
-  Helpdesk:
-    members:
-      - helpdesk.agent1@example.com
-  HR:
-    members:
-      - hr.agent1@example.com
-      - hr.agent2@example.com
+  - IT
+  - Support
+  - Helpdesk
+  - HR

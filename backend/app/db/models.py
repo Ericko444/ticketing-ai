@@ -32,3 +32,16 @@ class DuplicateEmailLog(Base):
     id = Column(String, primary_key=True)
     email_id = Column(String, nullable=False, index=True)
     detected_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(String, primary_key=True)
+    email = Column(String, unique=True, nullable=False, index=True)
+    password_hash = Column(String, nullable=False)
+    # "member" | "supervisor"
+    role = Column(String, nullable=False, default="member")
+    # null for supervisor (unscoped); IT/Support/Helpdesk/HR for members
+    team = Column(String, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))

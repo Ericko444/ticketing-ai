@@ -1,40 +1,34 @@
-from app.config import Settings, TeamConfig
+from app.config import Settings
 
 
-def test_members_for_known_team():
-    s = Settings(
+def _settings(**overrides) -> Settings:
+    defaults = dict(
         anthropic_api_key="k",
+        openai_api_key="",
         gmail_credentials_path="c.json",
         gmail_token_path="t.json",
         gmail_user="u@g.com",
         gmail_app_password="pass",
+        gmail_enabled=False,
         frontend_url="http://localhost:3000",
         email_notifications=True,
+        email_backend="log",
+        mailtrap_user="",
+        mailtrap_password="",
         supervisor_email="sup@test.com",
         confidence_threshold=0.8,
         polling_interval_seconds=30,
-        teams={"IT": TeamConfig(members=["it@test.com", "it2@test.com"])},
+        teams=[],
     )
-    assert s.members_for_team("IT") == ["it@test.com", "it2@test.com"]
+    defaults.update(overrides)
+    return Settings(**defaults)
 
 
-def test_members_for_unknown_team_returns_empty():
-    s = Settings(
-        anthropic_api_key="k",
-        gmail_credentials_path="c.json",
-        gmail_token_path="t.json",
-        gmail_user="u@g.com",
-        gmail_app_password="pass",
-        frontend_url="http://localhost:3000",
-        email_notifications=True,
-        supervisor_email="sup@test.com",
-        confidence_threshold=0.8,
-        polling_interval_seconds=30,
-        teams={},
-    )
-    assert s.members_for_team("HR") == []
+def test_teams_is_a_flat_list():
+    s = _settings(teams=["IT", "Support", "Helpdesk", "HR"])
+    assert s.teams == ["IT", "Support", "Helpdesk", "HR"]
 
 
-def test_team_config_holds_member_list():
-    tc = TeamConfig(members=["a@b.com"])
-    assert tc.members == ["a@b.com"]
+def test_teams_defaults_to_empty_list():
+    s = _settings()
+    assert s.teams == []

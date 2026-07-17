@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
 
-from app.db.models import Base, DuplicateEmailLog, Ticket
+from app.db.models import Base, DuplicateEmailLog, Ticket, User
 
 
 @pytest.fixture
@@ -24,6 +24,7 @@ def test_tables_created(db_session):
     tables = inspector.get_table_names()
     assert "tickets" in tables
     assert "duplicate_email_log" in tables
+    assert "users" in tables
 
 
 def test_ticket_insert_and_query(db_session):
@@ -73,3 +74,45 @@ def test_duplicate_email_log(db_session):
 
     result = db_session.query(DuplicateEmailLog).filter_by(email_id="gmail_msg_001").first()
     assert result is not None
+
+
+def test_user_insert_and_query(db_session):
+    user = User(
+        id=str(uuid.uuid4()),
+        email="it.agent1@example.com",
+        password_hash="hashed",
+        role="member",
+        team="IT",
+    )
+    db_session.add(user)
+    db_session.commit()
+
+    result = db_session.query(User).filter_by(email="it.agent1@example.com").first()
+    assert result is not None
+    assert result.role == "member"
+    assert result.team == "IT"
+
+
+def test_user_supervisor_has_no_team(db_session):
+    user = User(
+        id=str(uuid.uuid4()),
+        email="supervisor@example.com",
+        password_hash="hashed",
+        role="supervisor",
+        team=None,
+    )
+    db_session.add(user)
+    db_session.commit()
+
+    result = db_session.query(User).filter_by(email="supervisor@example.com").first()
+    assert result.role == "supervisor"
+    assert result.team is None
+
+
+def test_user_email_unique(db_session):
+    db_session.add(User(id=str(uuid.uuid4()), email="dup@example.com", password_hash="a", role="member", team="IT"))
+    db_session.commit()
+
+    db_session.add(User(id=str(uuid.uuid4()), email="dup@example.com", password_hash="b", role="member", team="HR"))
+    with pytest.raises(Exception):
+        db_session.commit()
